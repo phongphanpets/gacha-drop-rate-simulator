@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gacha Drop Rate Simulator</title>
+<style>
+:root {
+  --bg: #fafaf7;
+  --surface: #ffffff;
+  --surface-alt: #f4f3ee;
+  --border: #e5e3dc;
+  --border-strong: #c9c6bc;
+  --text: #1f1f1c;
+  --text-muted: #6b6a64;
+  --text-soft: #8e8d87;
+  --accent: #1a1a1a;
+  --accent-fg: #ffffff;
+  --info-bg: #e8f0fb;
+  --info-fg: #1a4b8c;
+  --success-bg: #e6f3ea;
+  --success-fg: #1f6b3a;
+  --danger-bg: #fbe9e7;
+  --danger-fg: #a02a1f;
+  --warning-bg: #fcf2dd;
+  --warning-fg: #8a5a0d;
+  --ssr-bg: #fcf0d4; --ssr-fg: #7a4f04;
+  --sr-bg: #ece9fb;  --sr-fg: #3d318a;
+  --r-bg: #e0ecfa;   --r-fg: #1a4378;
+  --n-bg: #eeece5;   --n-fg: #4a4945;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 0;
+  background: var(--bg); color: var(--text);
+  font-family: var(--font);
+  font-size: 15px; line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+.container { max-width: 920px; margin: 0 auto; padding: 32px 20px 80px; }
+header { text-align: center; margin-bottom: 40px; padding-bottom: 28px; border-bottom: 1px solid var(--border); }
+header h1 { font-size: 26px; font-weight: 600; margin: 0 0 6px; letter-spacing: -0.02em; }
+header p { font-size: 14px; color: var(--text-muted); margin: 0; }
+.section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px 26px;
+  margin-bottom: 18px;
+}
+.section h2 {
+  font-size: 17px; font-weight: 600;
+  margin: 0 0 4px;
+  display: flex; align-items: center; gap: 10px;
+}
+.section h2 .num {
+  width: 24px; height: 24px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--accent); color: var(--accent-fg);
+  font-size: 12px; font-weight: 600;
+  border-radius: 50%;
+}
+.section .sub { font-size: 13px; color: var(--text-muted); margin: 0 0 18px; }
+.grid { display: grid; gap: 12px; }
+.grid-2 { grid-template-columns: 1fr 1fr; }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-4 { grid-template-columns: repeat(4, 1fr); }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+input[type="text"], input[type="number"], select {
+  font-family: inherit; font-size: 14px;
+  padding: 8px 11px;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  width: 100%;
+  transition: border-color 0.15s;
+}
+input:focus, select:focus { outline: none; border-color: var(--accent); }
+input.invalid { border-color: var(--danger-fg); background: var(--danger-bg); }
+button {
+  font-family: inherit; font-size: 14px; font-weight: 500;
+  padding: 9px 16px;
+  background: var(--accent); color: var(--accent-fg);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: opacity 0.15s, transform 0.05s;
+}
+button:hover { opacity: 0.88; }
+button:active { transform: scale(0.98); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.secondary {
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border-strong);
+}
+button.secondary:hover { background: var(--surface-alt); }
+button.danger { background: var(--danger-bg); color: var(--danger-fg); border-color: var(--danger-bg); }
+button.small { font-size: 12px; padding: 5px 10px; }
+button.icon { padding: 6px 8px; }
+.status {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 500;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  margin-top: 12px;
+}
+.status.ok { background: var(--success-bg); color: var(--success-fg); }
+.status.bad { background: var(--danger-bg); color: var(--danger-fg); }
+.status.warn { background: var(--warning-bg); color: var(--warning-fg); }
+.status .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.pill {
+  display: inline-block;
+  padding: 2px 10px;
+  font-size: 12px; font-weight: 600;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+.pill-SSR { background: var(--ssr-bg); color: var(--ssr-fg); }
+.pill-SR  { background: var(--sr-bg);  color: var(--sr-fg); }
+.pill-R   { background: var(--r-bg);   color: var(--r-fg); }
+.pill-N   { background: var(--n-bg);   color: var(--n-fg); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; font-weight: 500; color: var(--text-muted); padding: 9px 8px; border-bottom: 1px solid var(--border); }
+td { padding: 11px 8px; border-bottom: 1px solid var(--border); }
+tr:last-child td { border-bottom: none; }
+.metric {
+  background: var(--surface-alt);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+}
+.metric-label { font-size: 12px; color: var(--text-muted); margin: 0 0 4px; font-weight: 500; }
+.metric-value { font-size: 22px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+.metric-value .small { font-size: 14px; color: var(--text-muted); font-weight: 400; margin-left: 4px; }
+.hero {
+  background: var(--info-bg); color: var(--info-fg);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  margin-bottom: 18px;
+  font-size: 14px; line-height: 1.7;
+}
+.hero strong { font-weight: 600; }
+details {
+  border-top: 1px solid var(--border);
+  margin-top: 18px;
+  padding-top: 6px;
+}
+details > summary {
+  cursor: pointer; user-select: none;
+  font-size: 13px; color: var(--text-muted);
+  padding: 8px 0;
+  list-style: none;
+  display: flex; align-items: center; gap: 6px;
+}
+details > summary::-webkit-details-marker { display: none; }
+details > summary::before { content: "▸"; font-size: 10px; transition: transform 0.15s; }
+details[open] > summary::before { transform: rotate(90deg); }
+.btn-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.histogram { margin: 6px 0 4px; }
+.bar-row {
+  display: grid; grid-template-columns: 64px 1fr 58px;
+  gap: 12px; align-items: center;
+  font-size: 12px;
+  padding: 4px 0;
+}
+.bar-row .label { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.bar { height: 10px; background: var(--surface-alt); border-radius: 4px; overflow: hidden; }
+.bar > div { height: 100%; background: var(--accent); transition: width 0.3s; border-radius: 4px; }
+.bar.dim > div { background: var(--text-soft); }
+.bar-row .val { text-align: right; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--surface-alt);
+  border-radius: var(--radius-md);
+  margin-bottom: 12px;
+}
+.toggle-row .info { font-size: 13px; }
+.toggle-row .info strong { font-weight: 600; display: block; margin-bottom: 2px; font-size: 14px; }
+.toggle-row .info span { color: var(--text-muted); font-size: 12px; }
+.switch { position: relative; display: inline-block; width: 36px; height: 20px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider {
+  position: absolute; cursor: pointer; inset: 0;
+  background: var(--border-strong); border-radius: 20px;
+  transition: 0.2s;
+}
+.slider:before {
+  content: ""; position: absolute;
+  width: 14px; height: 14px; left: 3px; top: 3px;
+  background: white; border-radius: 50%;
+  transition: 0.2s;
+}
+.switch input:checked + .slider { background: var(--accent); }
+.switch input:checked + .slider:before { transform: translateX(16px); }
+.toggle-body { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); display: none; }
+.toggle-body.open { display: block; }
+.history-item {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  margin-bottom: 6px;
+  font-size: 13px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.history-item .meta { color: var(--text-muted); font-size: 12px; }
+.preset-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-soft);
+  font-size: 13px;
+  background: var(--surface-alt);
+  border-radius: var(--radius-md);
+}
+.scroll-table { max-height: 320px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-md); }
+.scroll-table table { font-size: 13px; }
+.scroll-table th { background: var(--surface-alt); position: sticky; top: 0; }
+.progress {
+  margin: 12px 0;
+  padding: 10px 14px;
+  background: var(--info-bg);
+  border-radius: var(--radius-md);
+  color: var(--info-fg);
+  font-size: 13px;
+  display: flex; align-items: center; gap: 12px;
+}
+.progress-bar { flex: 1; height: 6px; background: rgba(0,0,0,0.08); border-radius: 3px; overflow: hidden; }
+.progress-bar > div { height: 100%; background: var(--info-fg); transition: width 0.1s; }
+.progress-text { font-variant-numeric: tabular-nums; font-weight: 500; min-width: 60px; text-align: right; }
+.dropdown { position: relative; display: inline-block; }
+.dropdown-menu {
+  position: absolute; top: calc(100% + 4px); left: 0;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  min-width: 280px; z-index: 50;
+  padding: 6px;
+  display: none;
+}
+.dropdown-menu.open { display: block; }
+.dropdown-menu button {
+  display: flex; width: 100%; text-align: left;
+  background: transparent; color: var(--text);
+  border: none; border-radius: var(--radius-sm);
+  padding: 9px 12px; font-size: 13px;
+  flex-direction: column; align-items: flex-start; gap: 2px;
+}
+.dropdown-menu button:hover { background: var(--surface-alt); opacity: 1; }
+.dropdown-menu button .dd-title { font-weight: 500; }
+.dropdown-menu button .dd-desc { font-size: 11px; color: var(--text-muted); }
+.dropdown-menu .dd-sep { height: 1px; background: var(--border); margin: 4px 0; }
+.dropdown-menu .dd-label { font-size: 11px; color: var(--text-soft); padding: 6px 12px 2px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.compare-table th, .compare-table td { text-align: center; }
+.compare-table td:first-child, .compare-table th:first-child { text-align: left; color: var(--text-muted); }
+.diff-up { color: var(--success-fg); font-weight: 500; }
+.diff-down { color: var(--danger-fg); font-weight: 500; }
+footer {
+  margin-top: 32px;
+  padding-top: 20px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-soft);
+  border-top: 1px solid var(--border);
+}
+@media (max-width: 640px) {
+  .container { padding: 20px 14px 60px; }
+  .grid-3, .grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .grid-2 { grid-template-columns: 1fr; }
+  .section { padding: 18px 16px; }
+  header h1 { font-size: 22px; }
+  table { font-size: 12px; }
+  th, td { padding: 8px 4px; }
+}
+@media (max-width: 420px) {
+  .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  .metric-value { font-size: 18px; }
+  .section h2 { font-size: 15px; }
+  .preset-row { gap: 4px; }
+  .preset-row button { font-size: 11px; padding: 4px 8px; }
+  .bar-row { grid-template-columns: 56px 1fr 48px; gap: 8px; font-size: 11px; }
+}
+.section > div > table, .section > table {
+  display: block; overflow-x: auto; max-width: 100%;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Gacha Drop Rate Simulator</h1>
+    <p>Design and validate gacha mechanics with player-side statistical insights</p>
+  </header>
+
+  <section class="section" id="sec-rates">
+    <h2><span class="num">1</span>Rate Settings</h2>
+    <p class="sub">Configure drop rates per rarity. Total must equal 100%.</p>
+    <div class="preset-row" title="Quick presets — designer scenarios">
+      <button class="secondary small" onclick="applyRatePreset('standard')" title="SSR 1% · SR 9% · R 30% · N 60% — Default mobile gacha baseline">Standard</button>
+      <button class="secondary small" onclick="applyRatePreset('generous')" title="SSR 3% · SR 12% · R 35% · N 50% — F2P-friendly / launch event">Generous</button>
+      <button class="secondary small" onclick="applyRatePreset('hardcore')" title="SSR 0.5% · SR 5% · R 24.5% · N 70% — Whale-targeted / collector">Hardcore</button>
+      <button class="secondary small" onclick="applyRatePreset('rateup')" title="SSR 2% · SR 15% · R 33% · N 50% — Banner event / featured">Rate-Up</button>
+      <button class="secondary small" onclick="applyRatePreset('mercy')" title="SSR 5% · SR 20% · R 35% · N 40% — Beginner / step-up banner">Mercy</button>
+      <button class="secondary small" onclick="applyRatePreset('profitmax')" title="SSR 0.3% · SR 4% · R 20% · N 75.7% — Stress test extreme">Profit Max</button>
+    </div>
+    <div class="grid grid-4">
+      <div class="field"><label>SSR rate (%)</label><input type="number" id="rate-SSR" value="1" min="0" max="100" step="0.1"></div>
+      <div class="field"><label>SR rate (%)</label><input type="number" id="rate-SR" value="9" min="0" max="100" step="0.1"></div>
+      <div class="field"><label>R rate (%)</label><input type="number" id="rate-R" value="30" min="0" max="100" step="0.1"></div>
+      <div class="field"><label>N rate (%)</label><input type="number" id="rate-N" value="60" min="0" max="100" step="0.1"></div>
+    </div>
+    <div id="rate-status" class="status ok"><span class="dot"></span><span id="rate-status-text">Total: 100% — Valid</span></div>
+  </section>
+
+  <section class="section" id="sec-pool">
+    <h2><span class="num">2</span>Item Pool <span style="font-weight:400;font-size:12px;color:var(--text-soft);margin-left:4px;" id="pool-count"></span></h2>
+    <p class="sub">Every rarity with rate &gt; 0 must have at least 1 item.</p>
+    <div class="grid" style="grid-template-columns: 1fr 140px auto; gap: 8px; margin-bottom: 14px;">
+      <input type="text" id="new-item-name" placeholder="Item name...">
+      <select id="new-item-rarity">
+        <option value="SSR">SSR</option>
+        <option value="SR">SR</option>
+        <option value="R" selected>R</option>
+        <option value="N">N</option>
+      </select>
+      <button onclick="addItem()">+ Add</button>
+    </div>
+    <div id="pool-table"></div>
+    <div id="pool-status"></div>
+  </section>
+
+  <section class="section" id="sec-bonus">
+    <h2><span class="num">3</span>Free Roll &amp; Pity</h2>
+    <p class="sub">Optional bonus mechanics for Player POV simulation.</p>
+
+    <div class="toggle-row">
+      <div class="info">
+        <strong>Free Roll Rule</strong>
+        <span>Every N paid rolls grants M free rolls (free rolls don't generate more free rolls)</span>
+      </div>
+      <label class="switch"><input type="checkbox" id="free-toggle" onchange="toggleFree()"><span class="slider"></span></label>
+    </div>
+    <div class="toggle-body" id="free-body">
+      <div class="grid grid-2">
+        <div class="field"><label>Every N paid rolls</label><input type="number" id="free-every" value="10" min="1"></div>
+        <div class="field"><label>Grants M free rolls</label><input type="number" id="free-grants" value="1" min="1"></div>
+      </div>
+    </div>
+
+    <div class="toggle-row" style="margin-top:12px;">
+      <div class="info">
+        <strong>Hard Pity (Guaranteed SSR)</strong>
+        <span>Force an SSR every N rolls — counter resets when SSR is obtained</span>
+      </div>
+      <label class="switch"><input type="checkbox" id="pity-toggle" onchange="togglePity()"><span class="slider"></span></label>
+    </div>
+    <div class="toggle-body" id="pity-body">
+      <div class="field"><label>Pity threshold (rolls)</label><input type="number" id="pity-threshold" value="90" min="1"></div>
+    </div>
+
+    <div class="toggle-row" style="margin-top:12px;">
+      <div class="info">
+        <strong>Soft Pity (Rate-Up after threshold)</strong>
+        <span>After N rolls without SSR, drops exclude N and R — only SSR + SR roll (proportional)</span>
+      </div>
+      <label class="switch"><input type="checkbox" id="soft-toggle" onchange="toggleSoft()"><span class="slider"></span></label>
+    </div>
+    <div class="toggle-body" id="soft-body">
+      <div class="field"><label>Soft pity threshold (rolls)</label><input type="number" id="soft-threshold" value="80" min="1" onchange="renderSoftPreview()"></div>
+      <div id="soft-preview" style="margin-top:10px;font-size:13px;color:var(--text-muted);"></div>
+    </div>
+  </section>
+
+  <section class="section" id="sec-single">
+    <h2><span class="num">4</span>Single Simulation</h2>
+    <p class="sub">Run N rolls and compare actual distribution against configured rates.</p>
+    <div class="grid" style="grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end; margin-bottom: 16px;">
+      <div class="field"><label>Number of rolls</label><input type="number" id="single-rolls" value="100" min="1" max="100000"></div>
+      <div class="field"><label>Price per roll (THB)</label><input type="number" id="single-price" value="30" min="0"></div>
+      <button onclick="runSingle()" id="btn-single">▶ Run Simulation</button>
+    </div>
+    <div id="single-result" style="display:none;">
+      <div class="grid grid-4" style="margin-bottom:16px;">
+        <div class="metric"><p class="metric-label">Total rolls</p><p class="metric-value" id="s-total">0</p></div>
+        <div class="metric"><p class="metric-label">Total cost</p><p class="metric-value" id="s-cost">฿0</p></div>
+        <div class="metric"><p class="metric-label">SSR obtained</p><p class="metric-value" id="s-ssr">0</p></div>
+        <div class="metric"><p class="metric-label">Most common</p><p class="metric-value" style="font-size:16px;padding-top:5px;" id="s-common">—</p></div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <p class="sub" style="margin-bottom:8px;">Rarity breakdown (configured vs actual)</p>
+        <table>
+          <thead><tr><th>Rarity</th><th>Configured</th><th>Count</th><th>Actual</th><th>Diff</th></tr></thead>
+          <tbody id="s-breakdown"></tbody>
+        </table>
+      </div>
+      <details>
+        <summary>Show item counts (<span id="s-item-count">0</span> unique items)</summary>
+        <div class="scroll-table" style="margin-top:8px;">
+          <table>
+            <thead><tr><th>Item</th><th>Rarity</th><th style="text-align:right;">Count</th></tr></thead>
+            <tbody id="s-items"></tbody>
+          </table>
+        </div>
+      </details>
+      <details>
+        <summary>Show full pull history (<span id="s-pull-count">0</span> pulls)</summary>
+        <div class="scroll-table" style="margin-top:8px;">
+          <table>
+            <thead><tr><th>#</th><th>Rarity</th><th>Item</th></tr></thead>
+            <tbody id="s-pulls"></tbody>
+          </table>
+        </div>
+      </details>
+      <div class="btn-row" style="margin-top:16px;">
+        <div class="dropdown">
+          <button class="secondary small" onclick="toggleDropdown('dd-single', event)">⬇ Export CSV ▾</button>
+          <div class="dropdown-menu" id="dd-single">
+            <div class="dd-label">Single Simulation</div>
+            <button onclick="exportSinglePulls();closeDropdowns()"><span class="dd-title">Pull Log</span><span class="dd-desc">Every roll with rarity, item, pity source, cost</span></button>
+            <button onclick="exportSingleItems();closeDropdowns()"><span class="dd-title">Per-Item Breakdown</span><span class="dd-desc">What you got, how many, vs expected</span></button>
+            <button onclick="exportSingleSummary();closeDropdowns()"><span class="dd-title">Summary &amp; Config</span><span class="dd-desc">Profit, player value, rates, settings</span></button>
+            <div class="dd-sep"></div>
+            <button onclick="exportAllSingle();closeDropdowns()"><span class="dd-title">⬇ Download All (3 files)</span><span class="dd-desc">Browser may ask to allow multiple downloads</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="sec-player">
+    <h2><span class="num">5</span>Player POV — Monte Carlo</h2>
+    <p class="sub">Simulate budget outcomes across many scenarios to understand player experience.</p>
+    <div class="preset-row">
+      <button class="secondary small" onclick="applyPreset(300)">F2P ฿300</button>
+      <button class="secondary small" onclick="applyPreset(3000)">Casual ฿3,000</button>
+      <button class="secondary small" onclick="applyPreset(30000)">Whale ฿30,000</button>
+    </div>
+    <div class="grid grid-3" style="margin-bottom:14px;">
+      <div class="field"><label>Budget (THB)</label><input type="number" id="p-budget" value="3000" min="0"></div>
+      <div class="field"><label>Price per roll</label><input type="number" id="p-price" value="30" min="1"></div>
+      <div class="field"><label>Simulations</label><input type="number" id="p-sims" value="1000" min="1" max="10000"></div>
+    </div>
+    <div class="btn-row" style="margin-bottom:16px;">
+      <button onclick="runPlayer()" id="btn-player">▶ Run Monte Carlo</button>
+      <button class="secondary" onclick="runCompare()" id="btn-compare">⚖ Compare Pity ON vs OFF</button>
+    </div>
+    <div id="p-progress" style="display:none;" class="progress">
+      <span id="p-progress-label">Simulating...</span>
+      <div class="progress-bar"><div id="p-progress-fill" style="width:0%"></div></div>
+      <span class="progress-text" id="p-progress-pct">0%</span>
+    </div>
+
+    <div id="player-result" style="display:none;">
+      <div class="hero" id="p-insight"></div>
+      <div class="grid grid-3" style="margin-bottom:18px;">
+        <div class="metric"><p class="metric-label">Chance ≥1 SSR</p><p class="metric-value" id="p-chance">0%</p></div>
+        <div class="metric"><p class="metric-label">Cost per SSR (avg)</p><p class="metric-value" id="p-cost-ssr">฿0</p></div>
+        <div class="metric"><p class="metric-label">Total rolls</p><p class="metric-value" id="p-rolls">0<span class="small" id="p-rolls-detail"></span></p></div>
+      </div>
+      <p class="sub" style="margin-bottom:8px;">SSR count distribution (<span id="p-sim-count">0</span> simulations)</p>
+      <div class="histogram" id="p-histogram"></div>
+      <details open>
+        <summary>Show detailed statistics</summary>
+        <div style="padding:10px 0 0;">
+          <table style="margin-bottom:12px;">
+            <tr><td style="color:var(--text-muted);">P10 (unlucky 10%)</td><td style="text-align:right;" id="p-p10">—</td></tr>
+            <tr><td style="color:var(--text-muted);">P50 (median)</td><td style="text-align:right;" id="p-p50">—</td></tr>
+            <tr><td style="color:var(--text-muted);">P90 (lucky 10%)</td><td style="text-align:right;" id="p-p90">—</td></tr>
+            <tr><td style="color:var(--text-muted);">Average SSR / SR / R / N</td><td style="text-align:right;" id="p-avg">—</td></tr>
+            <tr><td style="color:var(--text-muted);">SSR variance (StdDev)</td><td style="text-align:right;" id="p-var">—</td></tr>
+            <tr><td style="color:var(--text-muted);">Best / Worst run</td><td style="text-align:right;" id="p-bw">—</td></tr>
+          </table>
+          <p class="sub" style="margin-bottom:6px;">Rolls needed for chance of ≥1 SSR</p>
+          <table id="p-cumulative"></table>
+        </div>
+      </details>
+      <div id="compare-result" style="margin-top:16px;display:none;">
+        <p class="sub" style="margin-bottom:8px;">Pity comparison</p>
+        <table class="compare-table">
+          <thead><tr><th>Metric</th><th id="cmp-head-a">Scenario A</th><th id="cmp-head-b">Scenario B</th><th>Δ</th></tr></thead>
+          <tbody id="compare-body"></tbody>
+        </table>
+      </div>
+      <div class="btn-row" style="margin-top:16px;">
+        <div class="dropdown">
+          <button class="secondary small" onclick="toggleDropdown('dd-player', event)">⬇ Export CSV ▾</button>
+          <div class="dropdown-menu" id="dd-player">
+            <div class="dd-label">Player POV (Monte Carlo)</div>
+            <button onclick="exportPlayerSummary();closeDropdowns()"><span class="dd-title">Summary (Profit + Value)</span><span class="dd-desc">Revenue, conversion, cost/SSR, percentiles</span></button>
+            <button onclick="exportPlayerItems();closeDropdowns()"><span class="dd-title">Per-Item Across Sims</span><span class="dd-desc">Each item: total, % of sims, dupes, dead items</span></button>
+            <button onclick="exportPlayerRuns();closeDropdowns()"><span class="dd-title">Per-Simulation Runs</span><span class="dd-desc">Raw data: 1 row per simulation</span></button>
+            <button onclick="exportPlayerHistogram();closeDropdowns()"><span class="dd-title">SSR Distribution</span><span class="dd-desc">Histogram + cumulative probability table</span></button>
+            <div class="dd-sep"></div>
+            <button onclick="exportAllPlayer();closeDropdowns()"><span class="dd-title">⬇ Download All (4 files)</span><span class="dd-desc">Browser may ask to allow multiple downloads</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="sec-history">
+    <h2><span class="num">6</span>History</h2>
+    <p class="sub">Last 10 simulations from this session.</p>
+    <div id="history-list"><div class="empty">No simulations yet. Run a simulation above.</div></div>
+    <button class="secondary small" onclick="clearHistory()" id="btn-clear-history" style="display:none;margin-top:10px;">Clear history</button>
+  </section>
+
+  <footer>Built for AI Workflow Exam · Part 2 · Gacha Drop Rate Simulator</footer>
+</div>
+
+<script>
+const RARITIES = ["SSR", "SR", "R", "N"];
+
+const state = {
+  rates: { SSR: 1, SR: 9, R: 30, N: 60 },
+  pool: [
+    { id: 1, name: "Excalibur",       rarity: "SSR" },
+    { id: 2, name: "Mystic Bow",      rarity: "SSR" },
+    { id: 3, name: "Phoenix Staff",   rarity: "SR" },
+    { id: 4, name: "Steel Blade",     rarity: "SR" },
+    { id: 5, name: "Iron Spear",      rarity: "R" },
+    { id: 6, name: "Bronze Shield",   rarity: "R" },
+    { id: 7, name: "Wooden Stick",    rarity: "N" },
+    { id: 8, name: "Cloth Robe",      rarity: "N" }
+  ],
+  nextId: 9,
+  free: { enabled: false, every: 10, grants: 1 },
+  pity: { enabled: false, threshold: 90 },
+  softPity: { enabled: false, threshold: 80 },
+  lastSingle: null,
+  lastPlayer: null,
+  lastCompare: null,
+  history: []
+};
+
+// ---------- Rate validation ----------
+function getRateSum() {
+  return RARITIES.reduce((s, r) => s + (Number(document.getElementById("rate-" + r).value) || 0), 0);
+}
+function validateRates() {
+  const sum = getRateSum();
+  const el = document.getElementById("rate-status");
+  const text = document.getElementById("rate-status-text");
+  const eps = 0.001;
+  RARITIES.forEach(r => {
+    const v = Number(document.getElementById("rate-" + r).value);
+    state.rates[r] = isNaN(v) ? 0 : v;
+    const inp = document.getElementById("rate-" + r);
+    if (isNaN(v) || v < 0) inp.classList.add("invalid"); else inp.classList.remove("invalid");
+  });
+  if (Math.abs(sum - 100) < eps) {
+    el.className = "status ok"; text.textContent = "Total: " + sum.toFixed(2).replace(/\.?0+$/, "") + "% — Valid";
+    return true;
+  } else {
+    el.className = "status bad";
+    text.textContent = "Total: " + sum.toFixed(2) + "% — must equal 100%";
+    return false;
+  }
+}
+
+// ---------- Item Pool ----------
+function renderPool() {
+  document.getElementById("pool-count").textContent = "(" + state.pool.length + " items)";
+  const counts = {};
+  RARITIES.forEach(r => counts[r] = state.pool.filter(i => i.rarity === r).length);
+  const container = document.getElementById("pool-table");
+  if (state.pool.length === 0) {
+    container.innerHTML = '<div class="empty">No items in pool. Add at least one item per rarity with rate > 0.</div>';
+  } else {
+    let html = '<div class="scroll-table"><table><thead><tr><th>Name</th><th>Rarity</th><th style="text-align:right;width:120px;">Action</th></tr></thead><tbody>';
+    state.pool.forEach(item => {
+      html += `<tr>
+        <td><input type="text" value="${escapeHTML(item.name)}" onchange="updateItem(${item.id}, 'name', this.value)" style="border:none;background:transparent;padding:2px 4px;"></td>
+        <td><select onchange="updateItem(${item.id}, 'rarity', this.value)" style="width:90px;">
+          ${RARITIES.map(r => `<option value="${r}" ${item.rarity === r ? 'selected' : ''}>${r}</option>`).join('')}
+        </select></td>
+        <td style="text-align:right;"><button class="danger small" onclick="deleteItem(${item.id})">Delete</button></td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+  }
+  validatePool();
+}
+function validatePool() {
+  const el = document.getElementById("pool-status");
+  const missing = RARITIES.filter(r => state.rates[r] > 0 && state.pool.filter(i => i.rarity === r).length === 0);
+  if (missing.length > 0) {
+    el.innerHTML = '<div class="status bad"><span class="dot"></span>Missing items for: ' + missing.join(", ") + ' (rarity has rate > 0 but no items)</div>';
+    return false;
+  } else {
+    el.innerHTML = '<div class="status ok"><span class="dot"></span>All rarities with rate > 0 have items</div>';
+    return true;
+  }
+}
+function addItem() {
+  const name = document.getElementById("new-item-name").value.trim();
+  const rarity = document.getElementById("new-item-rarity").value;
+  if (!name) { alert("Item name cannot be empty"); return; }
+  state.pool.push({ id: state.nextId++, name, rarity });
+  document.getElementById("new-item-name").value = "";
+  renderPool();
+}
+function updateItem(id, field, value) {
+  const item = state.pool.find(i => i.id === id);
+  if (!item) return;
+  if (field === "name") {
+    const v = value.trim();
+    if (!v) { alert("Item name cannot be empty"); renderPool(); return; }
+    item.name = v;
+  } else item[field] = value;
+  renderPool();
+}
+function deleteItem(id) {
+  if (!confirm("Delete this item?")) return;
+  state.pool = state.pool.filter(i => i.id !== id);
+  renderPool();
+}
+function escapeHTML(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ---------- Toggles ----------
+function toggleFree() {
+  state.free.enabled = document.getElementById("free-toggle").checked;
+  document.getElementById("free-body").classList.toggle("open", state.free.enabled);
+}
+function togglePity() {
+  state.pity.enabled = document.getElementById("pity-toggle").checked;
+  document.getElementById("pity-body").classList.toggle("open", state.pity.enabled);
+}
+function toggleSoft() {
+  state.softPity.enabled = document.getElementById("soft-toggle").checked;
+  document.getElementById("soft-body").classList.toggle("open", state.softPity.enabled);
+  renderSoftPreview();
+}
+function renderSoftPreview() {
+  const el = document.getElementById("soft-preview");
+  if (!el) return;
+  const threshold = Math.max(1, Math.floor(Number(document.getElementById("soft-threshold").value) || 80));
+  const sub = computeSubPoolRates(state.rates);
+  let html = "";
+  if (sub.SSR === 0 && sub.SR === 0) {
+    html = '<span style="color:var(--danger-fg);">⚠ Cannot activate: SSR + SR rate = 0</span>';
+  } else {
+    html = `After roll ${threshold}, effective rates become — ` +
+      `<span class="pill pill-SSR" style="font-size:11px;">SSR ${sub.SSR.toFixed(2)}%</span> ` +
+      `<span class="pill pill-SR" style="font-size:11px;">SR ${sub.SR.toFixed(2)}%</span> ` +
+      `(N + R excluded; counter resets when SSR is obtained)`;
+  }
+  // Warning if soft >= hard threshold
+  const hardEnabled = document.getElementById("pity-toggle") && document.getElementById("pity-toggle").checked;
+  const hardThreshold = Math.max(1, Math.floor(Number(document.getElementById("pity-threshold").value) || 90));
+  if (hardEnabled && threshold >= hardThreshold) {
+    html += `<br><span style="color:var(--warning-fg);">⚠ Soft pity (${threshold}) ≥ Hard pity (${hardThreshold}) — Hard pity will trigger first, Soft pity has no effect.</span>`;
+  }
+  el.innerHTML = html;
+}
+function computeSubPoolRates(rates) {
+  const total = rates.SSR + rates.SR;
+  if (total <= 0) return { SSR: 0, SR: 0 };
+  return { SSR: (rates.SSR / total) * 100, SR: (rates.SR / total) * 100 };
+}
+function readBonusInputs() {
+  state.free.every = Math.max(1, Math.floor(Number(document.getElementById("free-every").value) || 10));
+  state.free.grants = Math.max(1, Math.floor(Number(document.getElementById("free-grants").value) || 1));
+  state.pity.threshold = Math.max(1, Math.floor(Number(document.getElementById("pity-threshold").value) || 90));
+  state.softPity.threshold = Math.max(1, Math.floor(Number(document.getElementById("soft-threshold").value) || 80));
+}
+
+// ---------- Core simulation ----------
+function pickRarity(rates) {
+  const r = Math.random() * 100;
+  let cum = 0;
+  for (const rar of RARITIES) {
+    cum += rates[rar];
+    if (r < cum) return rar;
+  }
+  return RARITIES[RARITIES.length - 1];
+}
+function pickItem(rarity, poolByRarity) {
+  const items = poolByRarity[rarity];
+  if (!items || items.length === 0) return null;
+  return items[Math.floor(Math.random() * items.length)];
+}
+function buildPoolMap() {
+  const m = {}; RARITIES.forEach(r => m[r] = []);
+  state.pool.forEach(i => m[i.rarity].push(i));
+  return m;
+}
+function simulateRolls(n, opts = {}) {
+  const rates = opts.rates || state.rates;
+  const poolMap = opts.poolMap || buildPoolMap();
+  const pityEnabled = opts.pityEnabled !== undefined ? opts.pityEnabled : state.pity.enabled;
+  const pityThreshold = opts.pityThreshold || state.pity.threshold;
+  const softEnabled = opts.softEnabled !== undefined ? opts.softEnabled : state.softPity.enabled;
+  const softThreshold = opts.softThreshold || state.softPity.threshold;
+  const free = opts.free || state.free;
+  const trackFree = opts.trackFree !== false;
+
+  const subRates = softEnabled ? computeSubPoolRates(rates) : null;
+  const subActive = softEnabled && (subRates.SSR + subRates.SR) > 0;
+
+  const results = [];
+  let paidCount = 0, freeCount = 0;
+  let pityCounter = 0;
+  let pendingFree = 0;
+
+  for (let i = 0; i < n; i++) {
+    const isFreeRoll = trackFree && free.enabled && pendingFree > 0;
+    let rarity;
+    let pitySource = "normal"; // normal | hard_pity | soft_pity
+    if (pityEnabled && pityCounter >= pityThreshold - 1) {
+      rarity = "SSR";
+      pitySource = "hard_pity";
+    } else if (subActive && pityCounter >= softThreshold) {
+      // Soft pity: roll from SSR+SR sub-pool with proportional weights
+      rarity = Math.random() * 100 < subRates.SSR ? "SSR" : "SR";
+      pitySource = "soft_pity";
+    } else {
+      rarity = pickRarity(rates);
+    }
+    if (rarity === "SSR") pityCounter = 0; else pityCounter++;
+    const item = pickItem(rarity, poolMap);
+    results.push({
+      index: i + 1,
+      rarity,
+      item: item ? item.name : "(no item)",
+      itemId: item ? item.id : null,
+      isFree: isFreeRoll,
+      pitySource
+    });
+
+    if (isFreeRoll) {
+      freeCount++;
+      pendingFree--;
+    } else {
+      paidCount++;
+      if (free.enabled && trackFree && paidCount > 0 && paidCount % free.every === 0) {
+        pendingFree += free.grants;
+      }
+    }
+  }
+  return { results, paidCount, freeCount };
+}
+
+// ---------- Analytics helpers ----------
+// Per-run aggregate stats from a results array
+function analyzeRun(results, poolSize) {
+  const rarityCount = { SSR: 0, SR: 0, R: 0, N: 0 };
+  const itemCount = {};       // itemName -> count
+  const uniqueByRarity = { SSR: new Set(), SR: new Set(), R: new Set(), N: new Set() };
+  let firstSSRRoll = -1;
+  let pityTriggered = 0;      // hard pity forced count
+  let softTriggered = 0;      // soft pity zone count
+
+  results.forEach(p => {
+    rarityCount[p.rarity]++;
+    itemCount[p.item] = (itemCount[p.item] || 0) + 1;
+    if (p.itemId != null) uniqueByRarity[p.rarity].add(p.itemId);
+    if (p.rarity === "SSR" && firstSSRRoll === -1) firstSSRRoll = p.index;
+    if (p.pitySource === "hard_pity") pityTriggered++;
+    if (p.pitySource === "soft_pity") softTriggered++;
+  });
+
+  const uniqueSSR = uniqueByRarity.SSR.size;
+  const uniqueTotal = uniqueByRarity.SSR.size + uniqueByRarity.SR.size + uniqueByRarity.R.size + uniqueByRarity.N.size;
+  const dupeSSR = rarityCount.SSR - uniqueSSR;
+  const totalObtained = results.length;
+  const dupeTotal = totalObtained - uniqueTotal;
+
+  return {
+    rarityCount, itemCount, firstSSRRoll, pityTriggered, softTriggered,
+    uniqueSSR, uniqueTotal, dupeSSR, dupeTotal,
+    collectionCompleteness: poolSize > 0 ? (uniqueTotal / poolSize) * 100 : 0
+  };
+}
+function countRarities(results) {
+  const c = { SSR: 0, SR: 0, R: 0, N: 0 };
+  results.forEach(r => c[r.rarity]++);
+  return c;
+}
+
+// ---------- Single sim ----------
+function runSingle() {
+  if (!validateRates()) { alert("Fix rate settings (must total 100%)"); return; }
+  if (!validatePool()) { alert("Fix item pool (every rarity with rate > 0 needs items)"); return; }
+  readBonusInputs();
+  const n = Math.floor(Number(document.getElementById("single-rolls").value) || 0);
+  const price = Math.max(0, Number(document.getElementById("single-price").value) || 0);
+  if (n < 1) { alert("Number of rolls must be ≥ 1"); return; }
+  if (n > 100000) { alert("Max 100,000 rolls"); return; }
+  const sim = simulateRolls(n, { trackFree: false });
+  const counts = countRarities(sim.results);
+  const itemCounts = {};
+  sim.results.forEach(r => { itemCounts[r.item + "|" + r.rarity] = (itemCounts[r.item + "|" + r.rarity] || 0) + 1; });
+  const totalCost = n * price;
+  let mostCommon = "—"; let mostC = 0;
+  RARITIES.forEach(r => { if (counts[r] > mostC) { mostC = counts[r]; mostCommon = r; } });
+
+  document.getElementById("s-total").textContent = n.toLocaleString();
+  document.getElementById("s-cost").textContent = "฿" + totalCost.toLocaleString();
+  document.getElementById("s-ssr").textContent = counts.SSR.toLocaleString();
+  document.getElementById("s-common").innerHTML = `<span class="pill pill-${mostCommon}">${mostCommon}</span>`;
+
+  let breakdown = "";
+  RARITIES.forEach(r => {
+    const actual = (counts[r] / n) * 100;
+    const diff = actual - state.rates[r];
+    const diffStr = (diff >= 0 ? "+" : "") + diff.toFixed(2) + "%";
+    breakdown += `<tr>
+      <td><span class="pill pill-${r}">${r}</span></td>
+      <td style="color:var(--text-muted);">${state.rates[r]}%</td>
+      <td>${counts[r].toLocaleString()}</td>
+      <td>${actual.toFixed(2)}%</td>
+      <td class="${diff >= 0 ? 'diff-up' : 'diff-down'}">${diffStr}</td>
+    </tr>`;
+  });
+  document.getElementById("s-breakdown").innerHTML = breakdown;
+
+  const sortedItems = Object.entries(itemCounts).sort((a, b) => b[1] - a[1]);
+  document.getElementById("s-item-count").textContent = sortedItems.length;
+  let itemRows = "";
+  sortedItems.forEach(([key, count]) => {
+    const [name, rar] = key.split("|");
+    itemRows += `<tr><td>${escapeHTML(name)}</td><td><span class="pill pill-${rar}">${rar}</span></td><td style="text-align:right;">${count.toLocaleString()}</td></tr>`;
+  });
+  document.getElementById("s-items").innerHTML = itemRows;
+
+  document.getElementById("s-pull-count").textContent = sim.results.length;
+  let pullRows = "";
+  sim.results.forEach(r => {
+    pullRows += `<tr><td>${r.index}</td><td><span class="pill pill-${r.rarity}">${r.rarity}</span></td><td>${escapeHTML(r.item)}</td></tr>`;
+  });
+  document.getElementById("s-pulls").innerHTML = pullRows;
+
+  document.getElementById("single-result").style.display = "block";
+  state.lastSingle = { n, price, totalCost, counts, results: sim.results, rates: { ...state.rates } };
+  pushHistory("Single sim", `${n} rolls · SSR ${counts.SSR} · ฿${totalCost.toLocaleString()}`);
+}
+
+// ---------- Player POV ----------
+function applyPreset(amount) {
+  document.getElementById("p-budget").value = amount;
+}
+const RATE_PRESETS = {
+  standard:  { SSR: 1,   SR: 9,  R: 30,   N: 60   },
+  generous:  { SSR: 3,   SR: 12, R: 35,   N: 50   },
+  hardcore:  { SSR: 0.5, SR: 5,  R: 24.5, N: 70   },
+  rateup:    { SSR: 2,   SR: 15, R: 33,   N: 50   },
+  mercy:     { SSR: 5,   SR: 20, R: 35,   N: 40   },
+  profitmax: { SSR: 0.3, SR: 4,  R: 20,   N: 75.7 }
+};
+function applyRatePreset(key) {
+  const p = RATE_PRESETS[key];
+  if (!p) return;
+  RARITIES.forEach(r => { document.getElementById("rate-" + r).value = p[r]; });
+  validateRates();
+  validatePool();
+}
+async function runPlayer() {
+  if (!validateRates()) { alert("Fix rate settings"); return; }
+  if (!validatePool()) { alert("Fix item pool"); return; }
+  readBonusInputs();
+  const budget = Math.max(0, Number(document.getElementById("p-budget").value) || 0);
+  const price = Math.max(1, Number(document.getElementById("p-price").value) || 1);
+  const sims = Math.max(1, Math.min(10000, Math.floor(Number(document.getElementById("p-sims").value) || 1000)));
+  if (budget < price) { alert("งบไม่พอแม้แต่ roll เดียว — Budget must be ≥ price per roll"); return; }
+
+  const paidRolls = Math.floor(budget / price);
+  const freeRolls = state.free.enabled ? Math.floor(paidRolls / state.free.every) * state.free.grants : 0;
+  const totalRolls = paidRolls + freeRolls;
+
+  const btn = document.getElementById("btn-player");
+  btn.disabled = true; btn.textContent = "Running...";
+  const result = await runSimsAsync(sims, totalRolls, {}, "Running Monte Carlo", true, budget);
+  btn.disabled = false; btn.textContent = "▶ Run Monte Carlo";
+
+  const stats = computeStats(result.ssrA, result.srA, result.rA, result.nA, budget, totalRolls, sims, paidRolls, freeRolls, price);
+  stats.analytics = result.analytics;
+  renderPlayerResult(stats);
+  state.lastPlayer = stats;
+  document.getElementById("compare-result").style.display = "none";
+  pushHistory("Player POV", `฿${budget.toLocaleString()} · ${totalRolls} rolls · ${(stats.chanceAtLeast1 * 100).toFixed(1)}% ≥1 SSR`);
+}
+
+function runSimsAsync(sims, totalRolls, simOpts, label, collectAnalytics, budget) {
+  return new Promise(resolve => {
+    const poolMap = buildPoolMap();
+    const poolSize = state.pool.length;
+    const ssrA = [], srA = [], rA = [], nA = [];
+    // Analytics accumulators (only if requested)
+    const itemAgg = {};   // itemId -> { name, rarity, total, simsWith, maxInOne, perSimTemp }
+    const runs = [];      // per-sim detail rows
+    if (collectAnalytics) {
+      state.pool.forEach(it => {
+        itemAgg[it.id] = { name: it.name, rarity: it.rarity, total: 0, simsWith: 0, maxInOne: 0 };
+      });
+    }
+    let firstSSRRolls = [];   // for time-to-first-SSR distribution
+    let totalPityTriggered = 0;
+    let totalSoftTriggered = 0;
+    let totalUniqueSSR = 0;
+    let totalDupeSSR = 0;
+    let totalCompleteness = 0;
+
+    const chunk = Math.max(50, Math.floor(sims / 40));
+    let done = 0;
+    const prog = document.getElementById("p-progress");
+    const fill = document.getElementById("p-progress-fill");
+    const pct = document.getElementById("p-progress-pct");
+    const lab = document.getElementById("p-progress-label");
+    prog.style.display = "flex";
+    lab.textContent = label;
+    function step() {
+      const end = Math.min(done + chunk, sims);
+      for (let s = done; s < end; s++) {
+        const sim = simulateRolls(totalRolls, { poolMap, trackFree: false, ...simOpts });
+        const c = countRarities(sim.results);
+        ssrA.push(c.SSR); srA.push(c.SR); rA.push(c.R); nA.push(c.N);
+
+        if (collectAnalytics) {
+          const a = analyzeRun(sim.results, poolSize);
+          // per-item: count occurrences this sim
+          const thisSimItem = {};
+          sim.results.forEach(p => { if (p.itemId != null) thisSimItem[p.itemId] = (thisSimItem[p.itemId] || 0) + 1; });
+          Object.entries(thisSimItem).forEach(([id, cnt]) => {
+            const agg = itemAgg[id];
+            if (agg) {
+              agg.total += cnt;
+              agg.simsWith += 1;
+              if (cnt > agg.maxInOne) agg.maxInOne = cnt;
+            }
+          });
+          firstSSRRolls.push(a.firstSSRRoll);
+          totalPityTriggered += a.pityTriggered;
+          totalSoftTriggered += a.softTriggered;
+          totalUniqueSSR += a.uniqueSSR;
+          totalDupeSSR += a.dupeSSR;
+          totalCompleteness += a.collectionCompleteness;
+          const costPerSSR = c.SSR > 0 ? budget / c.SSR : "";
+          runs.push({
+            sim_id: s + 1,
+            ssr: c.SSR, sr: c.SR, r: c.R, n: c.N,
+            unique_ssr: a.uniqueSSR, dupe_ssr: a.dupeSSR,
+            unique_total: a.uniqueTotal,
+            first_ssr_roll: a.firstSSRRoll,
+            pity_triggered: a.pityTriggered,
+            soft_triggered: a.softTriggered,
+            completeness: a.collectionCompleteness.toFixed(1),
+            cost_per_ssr: costPerSSR === "" ? "" : Math.round(costPerSSR)
+          });
+        }
+      }
+      done = end;
+      const p = Math.round((done / sims) * 100);
+      fill.style.width = p + "%";
+      pct.textContent = p + "%";
+      if (done < sims) {
+        setTimeout(step, 0);
+      } else {
+        setTimeout(() => { prog.style.display = "none"; }, 200);
+        const analytics = collectAnalytics ? {
+          itemAgg, runs, firstSSRRolls,
+          totalPityTriggered, totalSoftTriggered,
+          totalUniqueSSR, totalDupeSSR, totalCompleteness
+        } : null;
+        resolve({ ssrA, srA, rA, nA, analytics });
+      }
+    }
+    step();
+  });
+}
+
+function computeStats(ssrA, srA, rA, nA, budget, totalRolls, sims, paidRolls, freeRolls, price) {
+  const sortedSSR = [...ssrA].sort((a, b) => a - b);
+  const at = (arr, p) => arr[Math.min(arr.length - 1, Math.floor(p * arr.length))];
+  const sum = a => a.reduce((s, x) => s + x, 0);
+  const mean = a => sum(a) / a.length;
+  const mSSR = mean(ssrA), mSR = mean(srA), mR = mean(rA), mN = mean(nA);
+  const variance = ssrA.reduce((s, x) => s + (x - mSSR) ** 2, 0) / ssrA.length;
+  const stdDev = Math.sqrt(variance);
+  const chanceAtLeast1 = ssrA.filter(x => x >= 1).length / sims;
+  const totalSSR = sum(ssrA);
+  const totalBudgetSpent = sims * budget;
+  const costPerSSR = totalSSR > 0 ? totalBudgetSpent / totalSSR : null;
+
+  const histogram = {};
+  const maxSSR = Math.max(...ssrA);
+  // Dynamic buckets: if max <= 5, use 0/1/2/3/4/5+; if larger, use ranges
+  let bucketsList;
+  if (maxSSR <= 5) {
+    bucketsList = ["0", "1", "2", "3", "4", "5+"];
+    ssrA.forEach(c => { const k = c >= 5 ? "5+" : String(c); histogram[k] = (histogram[k] || 0) + 1; });
+  } else if (maxSSR <= 20) {
+    bucketsList = ["0", "1-2", "3-4", "5-7", "8-12", "13+"];
+    ssrA.forEach(c => {
+      let k;
+      if (c === 0) k = "0";
+      else if (c <= 2) k = "1-2";
+      else if (c <= 4) k = "3-4";
+      else if (c <= 7) k = "5-7";
+      else if (c <= 12) k = "8-12";
+      else k = "13+";
+      histogram[k] = (histogram[k] || 0) + 1;
+    });
+  } else {
+    // Adaptive: 6 buckets across the range
+    const min = Math.min(...ssrA);
+    const range = maxSSR - min;
+    const step = Math.ceil(range / 5);
+    bucketsList = [];
+    for (let i = 0; i < 5; i++) {
+      const lo = min + i * step;
+      const hi = min + (i + 1) * step - 1;
+      bucketsList.push(lo === hi ? String(lo) : `${lo}-${hi}`);
+    }
+    bucketsList.push(`${min + 5 * step}+`);
+    ssrA.forEach(c => {
+      let k = bucketsList[bucketsList.length - 1];
+      for (let i = 0; i < 5; i++) {
+        const lo = min + i * step, hi = min + (i + 1) * step - 1;
+        if (c >= lo && c <= hi) { k = bucketsList[i]; break; }
+      }
+      histogram[k] = (histogram[k] || 0) + 1;
+    });
+  }
+
+  const ssrRate = state.rates.SSR / 100;
+  const cumulative = ssrRate > 0 ? [0.5, 0.9, 0.99].map(p => {
+    const n = Math.ceil(Math.log(1 - p) / Math.log(1 - ssrRate));
+    return { pct: p, rolls: n, cost: n * price };
+  }) : null;
+
+  return {
+    budget, paidRolls, freeRolls, totalRolls, sims, price,
+    avgSSR: mSSR, avgSR: mSR, avgR: mR, avgN: mN,
+    stdDev, p10: at(sortedSSR, 0.1), p50: at(sortedSSR, 0.5), p90: at(sortedSSR, 0.9),
+    best: sortedSSR[sortedSSR.length - 1], worst: sortedSSR[0],
+    chanceAtLeast1, chanceZero: 1 - chanceAtLeast1, costPerSSR,
+    histogram, bucketsList, cumulative, ssrA
+  };
+}
+
+function renderPlayerResult(s) {
+  const ins = document.getElementById("p-insight");
+  ins.innerHTML = `<strong>💡 Insight:</strong> เติม ฿${s.budget.toLocaleString()} ได้ <strong>${s.totalRolls.toLocaleString()} rolls</strong> ` +
+    `— มีโอกาส <strong>${(s.chanceAtLeast1 * 100).toFixed(1)}%</strong> ได้ SSR อย่างน้อย 1 ตัว<br>` +
+    (s.costPerSSR ? `เฉลี่ยใช้ <strong>฿${Math.round(s.costPerSSR).toLocaleString()}</strong> ต่อ SSR 1 ตัว · ` : "") +
+    `ค่าเฉลี่ย <strong>${s.avgSSR.toFixed(2)}</strong> SSR ต่อรอบ`;
+
+  document.getElementById("p-chance").textContent = (s.chanceAtLeast1 * 100).toFixed(1) + "%";
+  document.getElementById("p-cost-ssr").textContent = s.costPerSSR ? "฿" + Math.round(s.costPerSSR).toLocaleString() : "—";
+  document.getElementById("p-rolls").innerHTML = s.totalRolls.toLocaleString() + '<span class="small">' + (s.freeRolls > 0 ? ` (${s.paidRolls} paid + ${s.freeRolls} free)` : "") + '</span>';
+
+  document.getElementById("p-sim-count").textContent = s.sims.toLocaleString();
+  const buckets = s.bucketsList;
+  let histHTML = "";
+  const total = s.sims;
+  buckets.forEach(b => {
+    const count = s.histogram[b] || 0;
+    const pct = (count / total) * 100;
+    histHTML += `<div class="bar-row">
+      <span class="label">${b} SSR</span>
+      <div class="bar ${b === '0' ? 'dim' : ''}"><div style="width:${pct}%"></div></div>
+      <span class="val">${pct.toFixed(1)}%</span>
+    </div>`;
+  });
+  document.getElementById("p-histogram").innerHTML = histHTML;
+
+  document.getElementById("p-p10").textContent = s.p10 + " SSR";
+  document.getElementById("p-p50").textContent = s.p50 + " SSR";
+  document.getElementById("p-p90").textContent = s.p90 + " SSR";
+  document.getElementById("p-avg").textContent = `${s.avgSSR.toFixed(2)} / ${s.avgSR.toFixed(2)} / ${s.avgR.toFixed(2)} / ${s.avgN.toFixed(2)}`;
+  document.getElementById("p-var").textContent = "±" + s.stdDev.toFixed(2);
+  document.getElementById("p-bw").textContent = `${s.best} / ${s.worst} SSR`;
+
+  if (s.cumulative) {
+    let cumHTML = "";
+    s.cumulative.forEach(c => {
+      cumHTML += `<tr><td>${(c.pct * 100).toFixed(0)}%</td><td style="text-align:right;color:var(--text-muted);">${c.rolls.toLocaleString()} rolls · ฿${c.cost.toLocaleString()}</td></tr>`;
+    });
+    document.getElementById("p-cumulative").innerHTML = cumHTML;
+  } else {
+    document.getElementById("p-cumulative").innerHTML = '<tr><td colspan="2" style="color:var(--text-soft);">SSR rate is 0 — cannot compute</td></tr>';
+  }
+
+  document.getElementById("player-result").style.display = "block";
+}
+
+// ---------- Compare Pity ----------
+async function runCompare() {
+  if (!validateRates() || !validatePool()) { alert("Fix configuration first"); return; }
+  readBonusInputs();
+  const budget = Math.max(0, Number(document.getElementById("p-budget").value) || 0);
+  const price = Math.max(1, Number(document.getElementById("p-price").value) || 1);
+  const sims = Math.max(1, Math.min(10000, Math.floor(Number(document.getElementById("p-sims").value) || 1000)));
+  if (budget < price) { alert("Budget must be ≥ price per roll"); return; }
+  const paidRolls = Math.floor(budget / price);
+  const freeRolls = state.free.enabled ? Math.floor(paidRolls / state.free.every) * state.free.grants : 0;
+  const totalRolls = paidRolls + freeRolls;
+
+  // Decide labels and opts
+  let labelA, labelB, optsA, optsB;
+  if (state.softPity.enabled) {
+    labelA = "Soft Pity OFF"; labelB = "Soft Pity ON";
+    optsA = { pityEnabled: state.pity.enabled, softEnabled: false };
+    optsB = { pityEnabled: state.pity.enabled, softEnabled: true };
+  } else {
+    labelA = "Hard Pity OFF"; labelB = "Hard Pity ON";
+    optsA = { pityEnabled: false, softEnabled: false };
+    optsB = { pityEnabled: true, softEnabled: false };
+  }
+
+  const btn = document.getElementById("btn-compare");
+  btn.disabled = true; btn.textContent = "Comparing...";
+  const ra = await runSimsAsync(sims, totalRolls, optsA, "Comparing — " + labelA, false, budget);
+  const rb = await runSimsAsync(sims, totalRolls, optsB, "Comparing — " + labelB, false, budget);
+  btn.disabled = false; btn.textContent = "⚖ Compare Pity ON vs OFF";
+
+  const off = computeStats(ra.ssrA, ra.srA, ra.rA, ra.nA, budget, totalRolls, sims, paidRolls, freeRolls, price);
+  const on  = computeStats(rb.ssrA, rb.srA, rb.rA, rb.nA, budget, totalRolls, sims, paidRolls, freeRolls, price);
+  state.lastCompare = { off, on, labelA, labelB };
+
+  const rows = [
+    ["Chance ≥1 SSR", (off.chanceAtLeast1 * 100).toFixed(1) + "%", (on.chanceAtLeast1 * 100).toFixed(1) + "%"],
+    ["Average SSR", off.avgSSR.toFixed(2), on.avgSSR.toFixed(2)],
+    ["P10 (unlucky)", off.p10, on.p10],
+    ["P50 (median)", off.p50, on.p50],
+    ["P90 (lucky)", off.p90, on.p90],
+    ["Cost per SSR", off.costPerSSR ? "฿" + Math.round(off.costPerSSR).toLocaleString() : "—", on.costPerSSR ? "฿" + Math.round(on.costPerSSR).toLocaleString() : "—"]
+  ];
+  let body = "";
+  rows.forEach(([label, a, b]) => {
+    body += `<tr><td>${label}</td><td>${a}</td><td>${b}</td><td class="diff-up">${typeof a === 'number' && typeof b === 'number' ? '+' + (b - a).toFixed(2) : '→'}</td></tr>`;
+  });
+  document.getElementById("cmp-head-a").textContent = labelA;
+  document.getElementById("cmp-head-b").textContent = labelB;
+  document.getElementById("compare-body").innerHTML = body;
+  document.getElementById("compare-result").style.display = "block";
+  pushHistory("Pity compare", `${labelA} ${(off.chanceAtLeast1*100).toFixed(1)}% → ${labelB} ${(on.chanceAtLeast1*100).toFixed(1)}%`);
+}
+
+// ---------- CSV Export ----------
+function downloadCSV(filename, rows) {
+  const csv = rows.map(r => r.map(v => {
+    const s = String(v == null ? "" : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }).join(",")).join("\r\n");
+  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(a.href), 100);
+}
+function makeFilename(prefix) {
+  const d = new Date();
+  const pad = n => String(n).padStart(2, "0");
+  return `${prefix}-${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.csv`;
+}
+function toggleDropdown(id, ev) {
+  if (ev) ev.stopPropagation();
+  const menu = document.getElementById(id);
+  const wasOpen = menu.classList.contains("open");
+  closeDropdowns();
+  if (!wasOpen) menu.classList.add("open");
+}
+function closeDropdowns() {
+  document.querySelectorAll(".dropdown-menu").forEach(m => m.classList.remove("open"));
+}
+function exportAllSingle() {
+  exportSinglePulls();
+  setTimeout(exportSingleItems, 150);
+  setTimeout(exportSingleSummary, 300);
+}
+function exportAllPlayer() {
+  exportPlayerSummary();
+  setTimeout(exportPlayerItems, 150);
+  setTimeout(exportPlayerRuns, 300);
+  setTimeout(exportPlayerHistogram, 450);
+}
+// ===== SINGLE SIM EXPORTS (3 files) =====
+function configRows() {
+  return [
+    ["free_roll_enabled", state.free.enabled],
+    ["free_roll_every", state.free.enabled ? state.free.every : ""],
+    ["free_roll_grants", state.free.enabled ? state.free.grants : ""],
+    ["hard_pity_enabled", state.pity.enabled],
+    ["hard_pity_threshold", state.pity.enabled ? state.pity.threshold : ""],
+    ["soft_pity_enabled", state.softPity.enabled],
+    ["soft_pity_threshold", state.softPity.enabled ? state.softPity.threshold : ""]
+  ];
+}
+
+// File 1: raw pull log
+function exportSinglePulls() {
+  if (!state.lastSingle) { alert("Run a simulation first"); return; }
+  const s = state.lastSingle;
+  const rows = [["roll_no", "rarity", "item_name", "pity_source", "cost_thb", "cumulative_cost_thb"]];
+  let cum = 0;
+  s.results.forEach(r => {
+    cum += s.price;
+    rows.push([r.index, r.rarity, r.item, r.pitySource || "normal", s.price, cum]);
+  });
+  downloadCSV(makeFilename("gacha-single-pulls"), rows);
+}
+
+// File 2: per-item breakdown
+function exportSingleItems() {
+  if (!state.lastSingle) { alert("Run a simulation first"); return; }
+  const s = state.lastSingle;
+  // count per item
+  const itemCount = {};
+  s.results.forEach(r => { if (r.itemId != null) itemCount[r.itemId] = (itemCount[r.itemId] || 0) + 1; });
+  const rows = [["item_name", "rarity", "configured_rate_pct", "times_obtained", "was_obtained", "pct_of_pulls", "expected_count", "diff_from_expected"]];
+  // rate per item = rarity rate / number of items in that rarity
+  const poolByRarity = {}; RARITIES.forEach(r => poolByRarity[r] = s.pool ? s.pool.filter(i => i.rarity === r) : state.pool.filter(i => i.rarity === r));
+  const pool = s.pool || state.pool;
+  pool.forEach(it => {
+    const itemsInRarity = poolByRarity[it.rarity].length;
+    const itemRate = itemsInRarity > 0 ? s.rates[it.rarity] / itemsInRarity : 0;
+    const obtained = itemCount[it.id] || 0;
+    const expected = (itemRate / 100) * s.n;
+    rows.push([
+      it.name, it.rarity, itemRate.toFixed(4), obtained,
+      obtained > 0, ((obtained / s.n) * 100).toFixed(4),
+      expected.toFixed(2), (obtained - expected >= 0 ? "+" : "") + (obtained - expected).toFixed(2)
+    ]);
+  });
+  downloadCSV(makeFilename("gacha-single-items"), rows);
+}
+
+// File 3: summary + config
+function exportSingleSummary() {
+  if (!state.lastSingle) { alert("Run a simulation first"); return; }
+  const s = state.lastSingle;
+  const a = analyzeRun(s.results, (s.pool || state.pool).length);
+  const totalSSR = s.counts.SSR;
+  const rows = [["category", "metric", "value", "unit", "notes"]];
+  rows.push(["overview", "total_rolls", s.n, "count", ""]);
+  rows.push(["overview", "total_cost", s.totalCost, "THB", ""]);
+  rows.push(["overview", "price_per_roll", s.price, "THB", ""]);
+  // profit
+  rows.push(["profit", "cost_per_ssr", totalSSR > 0 ? Math.round(s.totalCost / totalSSR) : "", "THB", "total_cost / SSR obtained"]);
+  rows.push(["profit", "cost_per_unique_ssr", a.uniqueSSR > 0 ? Math.round(s.totalCost / a.uniqueSSR) : "", "THB", "fairer: ignores duplicates"]);
+  const deadItems = (s.pool || state.pool).filter(it => !s.results.some(r => r.itemId === it.id));
+  rows.push(["profit", "dead_items", deadItems.length, "count", deadItems.map(d => d.name).join("; ")]);
+  // player value
+  rows.push(["player_value", "unique_items", a.uniqueTotal, "count", "of " + (s.pool || state.pool).length + " in pool"]);
+  rows.push(["player_value", "collection_completeness", a.collectionCompleteness.toFixed(1), "percent", ""]);
+  rows.push(["player_value", "duplicate_count", a.dupeTotal, "count", "pulls that were repeats"]);
+  rows.push(["player_value", "duplicate_rate", ((a.dupeTotal / s.n) * 100).toFixed(1), "percent", ""]);
+  rows.push(["player_value", "unique_ssr", a.uniqueSSR, "count", ""]);
+  rows.push(["player_value", "duplicate_ssr", a.dupeSSR, "count", "wasted SSR"]);
+  rows.push(["player_value", "first_ssr_roll", a.firstSSRRoll, "roll_no", "-1 = never obtained"]);
+  rows.push(["player_value", "hard_pity_triggered", a.pityTriggered, "count", "SSR forced by hard pity"]);
+  rows.push(["player_value", "soft_pity_pulls", a.softTriggered, "count", "pulls inside soft pity zone"]);
+  // rates
+  RARITIES.forEach(r => {
+    const count = s.counts[r];
+    rows.push(["rates", r + "_configured", s.rates[r], "percent", ""]);
+    rows.push(["rates", r + "_actual", ((count / s.n) * 100).toFixed(4), "percent", ""]);
+    rows.push(["rates", r + "_diff", (((count / s.n) * 100 - s.rates[r]) >= 0 ? "+" : "") + (((count / s.n) * 100) - s.rates[r]).toFixed(4), "percent", "actual - configured"]);
+  });
+  // config
+  configRows().forEach(([k, v]) => rows.push(["config", k, v, k.includes("threshold") ? "roll_no" : (k.includes("every") || k.includes("grants") ? "count" : "boolean"), ""]));
+  downloadCSV(makeFilename("gacha-single-summary"), rows);
+}
+
+// ===== PLAYER POV EXPORTS (4 files) =====
+
+// File 4: comprehensive summary
+function exportPlayerSummary() {
+  if (!state.lastPlayer) { alert("Run a Monte Carlo simulation first"); return; }
+  const s = state.lastPlayer;
+  const an = s.analytics;
+  const totalRevenue = s.budget * s.sims;
+  const totalSSRDelivered = s.avgSSR * s.sims;
+  const playersWithSSR = Math.round(s.chanceAtLeast1 * s.sims);
+  const rows = [["category", "metric", "value", "unit", "notes"]];
+  // revenue
+  rows.push(["revenue", "total_revenue", totalRevenue, "THB", "budget × simulations"]);
+  rows.push(["revenue", "revenue_per_ssr", totalSSRDelivered > 0 ? Math.round(totalRevenue / totalSSRDelivered) : "", "THB", "revenue / SSR delivered"]);
+  if (an) {
+    const totalUniqueSSR = an.totalUniqueSSR;
+    rows.push(["revenue", "revenue_per_unique_ssr", totalUniqueSSR > 0 ? Math.round(totalRevenue / totalUniqueSSR) : "", "THB", "revenue / unique SSR (ignores dupes)"]);
+  }
+  rows.push(["revenue", "revenue_per_happy_player", playersWithSSR > 0 ? Math.round(totalRevenue / playersWithSSR) : "", "THB", "revenue / players with ≥1 SSR"]);
+  if (an && totalSSRDelivered > 0) {
+    rows.push(["revenue", "pity_delivered_ssr_pct", ((an.totalPityTriggered / totalSSRDelivered) * 100).toFixed(2), "percent", "% of SSR delivered via hard pity"]);
+  }
+  // player value
+  rows.push(["player_value", "conversion_rate", (s.chanceAtLeast1 * 100).toFixed(2), "percent", "% sims with ≥1 SSR"]);
+  rows.push(["player_value", "churn_risk", (s.chanceZero * 100).toFixed(2), "percent", "% sims with 0 SSR"]);
+  rows.push(["player_value", "avg_ssr", s.avgSSR.toFixed(4), "count", ""]);
+  if (an) {
+    const avgUniqueSSR = an.totalUniqueSSR / s.sims;
+    const avgDupeSSR = an.totalDupeSSR / s.sims;
+    rows.push(["player_value", "avg_unique_ssr", avgUniqueSSR.toFixed(4), "count", ""]);
+    rows.push(["player_value", "avg_duplicate_ssr", avgDupeSSR.toFixed(4), "count", "wasted SSR per player"]);
+    rows.push(["player_value", "duplicate_ssr_rate", s.avgSSR > 0 ? ((avgDupeSSR / s.avgSSR) * 100).toFixed(2) : "0", "percent", ""]);
+    rows.push(["player_value", "cost_per_unique_ssr", avgUniqueSSR > 0 ? Math.round(s.budget / avgUniqueSSR) : "", "THB", "per player, fairer metric"]);
+    rows.push(["player_value", "avg_collection_completeness", (an.totalCompleteness / s.sims).toFixed(2), "percent", ""]);
+    // first SSR roll median
+    const validFirst = an.firstSSRRolls.filter(x => x > 0).sort((a, b) => a - b);
+    const medFirst = validFirst.length ? validFirst[Math.floor(validFirst.length / 2)] : -1;
+    rows.push(["player_value", "first_ssr_roll_median", medFirst, "roll_no", "median rolls to first SSR (excl. never)"]);
+  }
+  rows.push(["player_value", "cost_per_ssr", s.costPerSSR ? Math.round(s.costPerSSR) : "", "THB", "per player average"]);
+  // distribution
+  rows.push(["distribution", "p10_ssr", s.p10, "count", "unlucky 10% get this or fewer"]);
+  rows.push(["distribution", "p50_ssr", s.p50, "count", "median"]);
+  rows.push(["distribution", "p90_ssr", s.p90, "count", "lucky 10% get this or more"]);
+  rows.push(["distribution", "stddev_ssr", s.stdDev.toFixed(4), "count", "spread / volatility"]);
+  rows.push(["distribution", "best_ssr", s.best, "count", "luckiest run"]);
+  rows.push(["distribution", "worst_ssr", s.worst, "count", "unluckiest run"]);
+  rows.push(["distribution", "avg_sr", s.avgSR.toFixed(4), "count", ""]);
+  rows.push(["distribution", "avg_r", s.avgR.toFixed(4), "count", ""]);
+  rows.push(["distribution", "avg_n", s.avgN.toFixed(4), "count", ""]);
+  // setup
+  rows.push(["setup", "budget", s.budget, "THB", ""]);
+  rows.push(["setup", "price_per_roll", s.price, "THB", ""]);
+  rows.push(["setup", "paid_rolls", s.paidRolls, "count", ""]);
+  rows.push(["setup", "free_rolls", s.freeRolls, "count", ""]);
+  rows.push(["setup", "total_rolls", s.totalRolls, "count", ""]);
+  rows.push(["setup", "simulation_count", s.sims, "count", ""]);
+  // config
+  configRows().forEach(([k, v]) => rows.push(["config", k, v, k.includes("threshold") ? "roll_no" : (k.includes("every") || k.includes("grants") ? "count" : "boolean"), ""]));
+  downloadCSV(makeFilename("gacha-player-summary"), rows);
+}
+
+// File 5: per-item across all sims
+function exportPlayerItems() {
+  if (!state.lastPlayer || !state.lastPlayer.analytics) { alert("Run a Monte Carlo simulation first"); return; }
+  const s = state.lastPlayer;
+  const an = s.analytics;
+  const poolByRarity = {}; RARITIES.forEach(r => poolByRarity[r] = state.pool.filter(i => i.rarity === r));
+  const rows = [["item_name", "rarity", "configured_rate_pct", "total_obtained", "sims_obtained_in", "sims_obtained_pct", "avg_per_sim", "max_in_one_sim", "extra_copies", "dead_item"]];
+  Object.values(an.itemAgg).forEach(agg => {
+    const itemsInRarity = poolByRarity[agg.rarity].length;
+    const itemRate = itemsInRarity > 0 ? s.avgSSR !== undefined ? (rateForRarity(agg.rarity) / itemsInRarity) : 0 : 0;
+    const extraCopies = agg.total - agg.simsWith; // copies beyond the first-in-each-sim (duplicate burden)
+    rows.push([
+      agg.name, agg.rarity, itemRate.toFixed(4),
+      agg.total, agg.simsWith, ((agg.simsWith / s.sims) * 100).toFixed(2),
+      (agg.total / s.sims).toFixed(4), agg.maxInOne,
+      extraCopies, agg.total === 0
+    ]);
+  });
+  downloadCSV(makeFilename("gacha-player-items"), rows);
+}
+function rateForRarity(rarity) { return state.rates[rarity] || 0; }
+
+// File 6: per-simulation breakdown
+function exportPlayerRuns() {
+  if (!state.lastPlayer || !state.lastPlayer.analytics) { alert("Run a Monte Carlo simulation first"); return; }
+  const s = state.lastPlayer;
+  const rows = [["sim_id", "ssr_count", "sr_count", "r_count", "n_count", "unique_ssr", "dupe_ssr", "unique_total", "first_ssr_roll", "hard_pity_triggered", "soft_pity_pulls", "collection_completeness_pct", "cost_per_ssr_thb"]];
+  s.analytics.runs.forEach(r => {
+    rows.push([r.sim_id, r.ssr, r.sr, r.r, r.n, r.unique_ssr, r.dupe_ssr, r.unique_total, r.first_ssr_roll, r.pity_triggered, r.soft_triggered, r.completeness, r.cost_per_ssr]);
+  });
+  downloadCSV(makeFilename("gacha-player-runs"), rows);
+}
+
+// File 7: SSR distribution histogram
+function exportPlayerHistogram() {
+  if (!state.lastPlayer) { alert("Run a Monte Carlo simulation first"); return; }
+  const s = state.lastPlayer;
+  const rows = [["ssr_count_bucket", "frequency", "percentage", "cumulative_pct"]];
+  let cumPct = 0;
+  s.bucketsList.forEach(k => {
+    const c = s.histogram[k] || 0;
+    const pct = (c / s.sims) * 100;
+    cumPct += pct;
+    rows.push([k, c, pct.toFixed(2), cumPct.toFixed(2)]);
+  });
+  rows.push([]);
+  rows.push(["target_chance_pct", "rolls_needed", "cost_thb"]);
+  if (s.cumulative) s.cumulative.forEach(c => rows.push([(c.pct * 100).toFixed(0), c.rolls, c.cost]));
+  downloadCSV(makeFilename("gacha-player-histogram"), rows);
+}
+
+// ---------- History ----------
+function pushHistory(type, summary) {
+  state.history.unshift({ type, summary, time: new Date().toLocaleTimeString() });
+  if (state.history.length > 10) state.history.pop();
+  renderHistory();
+}
+function renderHistory() {
+  const el = document.getElementById("history-list");
+  if (state.history.length === 0) {
+    el.innerHTML = '<div class="empty">No simulations yet. Run a simulation above.</div>';
+    document.getElementById("btn-clear-history").style.display = "none";
+  } else {
+    el.innerHTML = state.history.map(h => `<div class="history-item"><div><strong>${h.type}</strong> · ${escapeHTML(h.summary)}</div><span class="meta">${h.time}</span></div>`).join("");
+    document.getElementById("btn-clear-history").style.display = "inline-flex";
+  }
+}
+function clearHistory() {
+  if (!confirm("Clear all history?")) return;
+  state.history = []; renderHistory();
+}
+
+// ---------- Init ----------
+function init() {
+  RARITIES.forEach(r => {
+    document.getElementById("rate-" + r).addEventListener("input", () => { validateRates(); validatePool(); renderSoftPreview(); });
+  });
+  document.getElementById("pity-threshold").addEventListener("input", renderSoftPreview);
+  document.getElementById("pity-toggle").addEventListener("change", renderSoftPreview);
+  document.addEventListener("click", closeDropdowns);
+  validateRates();
+  renderPool();
+  renderSoftPreview();
+}
+init();
+</script>
+</body>
+</html>
