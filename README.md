@@ -2,7 +2,7 @@
 
 > Single-file HTML gacha simulator with rate configuration, item pool management, Monte Carlo player POV analysis, and 7-file CSV export pipeline. Built for the AI Workflow Exam — Part 2.
 
-🔗 **Live Demo:** [https://YOUR_USERNAME.github.io/gacha-drop-rate-simulator/gacha-simulator.html](https://YOUR_USERNAME.github.io/gacha-drop-rate-simulator/gacha-simulator.html)
+🔗 **Live Demo:** [https://phongphanpets.github.io/gacha-drop-rate-simulator/gacha-simulator.html](https://phongphanpets.github.io/gacha-drop-rate-simulator/gacha-simulator.html)
 
 ---
 
